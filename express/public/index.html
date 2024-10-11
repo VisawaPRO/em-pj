@@ -51,14 +51,47 @@
             background-color: #4db8ff;
             color: white;
         }
+        #temperatureTable {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            border-collapse: collapse;
+        }
+        #temperatureTable th, #temperatureTable td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+        #temperatureTable th {
+            background-color: #f0f0f0;
+        }
     </style>
 </head>
 <body>
     <h1>ESP32 Sensor Data</h1>
     <div id="sensorData">Loading sensor data...</div>
 
+    <h2>Daily Average Temperature</h2>
+    <table id="temperatureTable">
+        <thead>
+            <tr>
+                <th>Day</th>
+                <th>Average Temperature (°C)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Average temperature data will be inserted here -->
+        </tbody>
+    </table>
+
     <script>
         const sensorDataDiv = document.getElementById('sensorData');
+        const temperatureTableBody = document.querySelector('#temperatureTable tbody');
+
+        let hourlyTemperatures = [];
+        let dailyAverages = [];
 
         // Function to calculate heat index
         function calculateHeatIndex(temperature, humidity) {
@@ -100,6 +133,7 @@
             })
             .then(data => {
                 displaySensorData(data);
+                updateTemperatureAverages(data.temperature);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -111,7 +145,6 @@
         function displaySensorData(data) {
             const heatIndex = calculateHeatIndex(data.temperature, data.humidity);
 
-            // Determine heat index status color
             let statusClass = '';
             let statusText = '';
             if (heatIndex >= 30) {
@@ -125,7 +158,6 @@
                 statusText = 'Cold';
             }
 
-            // Display sensor data with heat index status
             sensorDataDiv.innerHTML = `
                 <h2>Current Sensor Data</h2>
                 <p class="sensor-value"><strong>Temperature:</strong> ${data.temperature} °C</p>
@@ -136,9 +168,46 @@
             `;
         }
 
+        // Function to update the daily temperature averages
+        function updateTemperatureAverages(currentTemperature) {
+            const currentDate = new Date().toLocaleDateString();
+
+            // Add current temperature to hourly array
+            hourlyTemperatures.push(currentTemperature);
+
+            // Every hour, calculate the average temperature and store it
+            if (hourlyTemperatures.length >= 12) {
+                const average = (hourlyTemperatures.reduce((sum, temp) => sum + temp, 0) / hourlyTemperatures.length).toFixed(2);
+                dailyAverages.push({ day: currentDate, avgTemp: average });
+
+                // Update table
+                updateTemperatureTable();
+
+                // Reset hourly temperatures for the next hour
+                hourlyTemperatures = [];
+            }
+        }
+
+        // Function to update the temperature table
+        function updateTemperatureTable() {
+            temperatureTableBody.innerHTML = ''; // Clear previous table rows
+
+            dailyAverages.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${entry.day}</td>
+                    <td>${entry.avgTemp} °C</td>
+                `;
+                temperatureTableBody.appendChild(row);
+            });
+        }
+
         // Fetch sensor data immediately and set up an interval to fetch it every 5 seconds
         fetchSensorData();  // Fetch data immediately when the page loads
         setInterval(fetchSensorData, 5000);  // Continue fetching data every 5 seconds
+
+        // Update table every hour
+        setInterval(updateTemperatureTable, 3600000); // Every hour (3600000 ms)
     </script>
 </body>
 </html>
