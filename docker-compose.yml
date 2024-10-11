@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  express:
+    build: ./express
+    volumes:
+      - ./express:/usr/src/app
+    networks:
+      - lab4-network
+    ports:
+      - "3300:3300"
+
+  nginx:
+    build:
+      context: .  # Make sure to set the context to the parent directory
+      dockerfile: ./nginx/Dockerfile  # Specify the Dockerfile if needed
+    networks:
+      - lab4-network
+    ports:
+      - "8080:8080"
+
+  mongodb:
+    build: ./mongodb
+    networks:
+      - lab4-network
+    ports:
+      - "27017:27017"
+
+networks:
+  lab4-network:
+    driver: bridge
+

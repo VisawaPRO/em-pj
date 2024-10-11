@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Sensor Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+        }
+        #sensorData {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Sensor Data</h1>
+    <div id="sensorData">Loading sensor data...</div>
+
+    <script>
+        const sensorDataDiv = document.getElementById('sensorData');
+
+        // Function to fetch sensor data from the server
+        function fetchSensorData() {
+            fetch('http://192.168.1.119:3300/sensor-data')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                displaySensorData(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                sensorDataDiv.innerHTML = 'Error fetching sensor data';
+            });
+        }
+
+        // Function to display sensor data
+        function displaySensorData(data) {
+            sensorDataDiv.innerHTML = `
+                <h2>Current Sensor Data</h2>
+                <p><strong>Temperature:</strong> ${data.temperature} °C</p>
+                <p><strong>Humidity:</strong> ${data.humidity} %</p>
+                <p><strong>Switch Status:</strong> ${data.switchStatus ? 'ON' : 'OFF'}</p>
+            `;
+        }
+
+        // Fetch sensor data every second
+        setInterval(fetchSensorData, 1000);
+    </script>
+</body>
+</html>
+
