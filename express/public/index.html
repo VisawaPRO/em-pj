@@ -10,17 +10,46 @@
             margin: 0;
             padding: 20px;
             background-color: #f4f4f4;
+            color: #333;
         }
         h1 {
-            color: #333;
+            text-align: center;
+            color: #444;
+            font-size: 2em;
         }
         #sensorData {
             margin-top: 20px;
-            padding: 10px;
+            padding: 20px;
             background-color: #fff;
             border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .sensor-value {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
             border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .hot {
+            background-color: #ff4d4d;
+            color: white;
+        }
+        .normal {
+            background-color: #4caf50;
+            color: white;
+        }
+        .cold {
+            background-color: #4db8ff;
+            color: white;
         }
     </style>
 </head>
@@ -31,9 +60,38 @@
     <script>
         const sensorDataDiv = document.getElementById('sensorData');
 
+        // Function to calculate heat index
+        function calculateHeatIndex(temperature, humidity) {
+            const c1 = -8.78469475556;
+            const c2 = 1.61139411;
+            const c3 = 2.33854883889;
+            const c4 = -0.14611605;
+            const c5 = -0.012308094;
+            const c6 = -0.0164248277778;
+            const c7 = 0.002211732;
+            const c8 = 0.00072546;
+            const c9 = -0.000003582;
+
+            const heatIndex = c1 + 
+                            (c2 * temperature) + 
+                            (c3 * humidity) + 
+                            (c4 * temperature * humidity) + 
+                            (c5 * temperature * temperature) + 
+                            (c6 * humidity * humidity) + 
+                            (c7 * temperature * temperature * humidity) + 
+                            (c8 * temperature * humidity * humidity) + 
+                            (c9 * temperature * temperature * humidity * humidity);
+            return heatIndex.toFixed(2);
+        }
+
         // Function to fetch sensor data from the server
         function fetchSensorData() {
-            fetch('http://192.168.1.119:3300/sensor-data')
+            fetch('http://192.168.1.119:3300/sensor-data', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer z9LRcZFD09RzMdFJg0OwInK9iMhldA90Tz9h9XXc2rsTrPGmRhMRP06sq4JNXhiLUkrXyS63Nx'
+                }
+            })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok: ' + response.statusText);
@@ -51,17 +109,36 @@
 
         // Function to display sensor data
         function displaySensorData(data) {
+            const heatIndex = calculateHeatIndex(data.temperature, data.humidity);
+
+            // Determine heat index status color
+            let statusClass = '';
+            let statusText = '';
+            if (heatIndex >= 30) {
+                statusClass = 'hot';
+                statusText = 'Hot';
+            } else if (heatIndex >= 20 && heatIndex < 30) {
+                statusClass = 'normal';
+                statusText = 'Normal';
+            } else {
+                statusClass = 'cold';
+                statusText = 'Cold';
+            }
+
+            // Display sensor data with heat index status
             sensorDataDiv.innerHTML = `
                 <h2>Current Sensor Data</h2>
-                <p><strong>Temperature:</strong> ${data.temperature} °C</p>
-                <p><strong>Humidity:</strong> ${data.humidity} %</p>
-                <p><strong>Switch Status:</strong> ${data.switchStatus ? 'ON' : 'OFF'}</p>
+                <p class="sensor-value"><strong>Temperature:</strong> ${data.temperature} °C</p>
+                <p class="sensor-value"><strong>Humidity:</strong> ${data.humidity} %</p>
+                <p class="sensor-value"><strong>Heat Index:</strong> ${heatIndex} °C</p>
+                <p class="status ${statusClass}">${statusText}</p>
+                <p><strong>Last Updated:</strong> ${new Date().toLocaleTimeString()}</p>
             `;
         }
 
-        // Fetch sensor data every second
-        setInterval(fetchSensorData, 1000);
+        // Fetch sensor data immediately and set up an interval to fetch it every 5 seconds
+        fetchSensorData();  // Fetch data immediately when the page loads
+        setInterval(fetchSensorData, 5000);  // Continue fetching data every 5 seconds
     </script>
 </body>
 </html>
-
