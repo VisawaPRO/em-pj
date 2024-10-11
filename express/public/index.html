@@ -67,7 +67,14 @@
         #temperatureTable th {
             background-color: #f0f0f0;
         }
+        #temperatureChart {
+            margin-top: 20px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js Library -->
 </head>
 <body>
     <h1>ESP32 Sensor Data</h1>
@@ -86,12 +93,61 @@
         </tbody>
     </table>
 
+    <h2>Temperature and Humidity Chart</h2>
+    <canvas id="temperatureChart"></canvas> <!-- Canvas for Chart.js -->
+
     <script>
         const sensorDataDiv = document.getElementById('sensorData');
         const temperatureTableBody = document.querySelector('#temperatureTable tbody');
+        const ctx = document.getElementById('temperatureChart').getContext('2d');
 
         let hourlyTemperatures = [];
         let dailyAverages = [];
+        let temperatureData = [];
+        let humidityData = [];
+        let labels = [];
+
+        // Initialize Chart.js
+        const temperatureChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Temperature (°C)',
+                        data: temperatureData,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Humidity (%)',
+                        data: humidityData,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        fill: false,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Value'
+                        },
+                        min: 0
+                    }
+                }
+            }
+        });
 
         // Function to calculate heat index
         function calculateHeatIndex(temperature, humidity) {
@@ -134,6 +190,7 @@
             .then(data => {
                 displaySensorData(data);
                 updateTemperatureAverages(data.temperature);
+                updateChart(data.temperature, data.humidity);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -202,12 +259,24 @@
             });
         }
 
-        // Fetch sensor data immediately and set up an interval to fetch it every 5 seconds
-        fetchSensorData();  // Fetch data immediately when the page loads
-        setInterval(fetchSensorData, 5000);  // Continue fetching data every 5 seconds
+        // Function to update the chart with new data
+        function updateChart(temperature, humidity) {
+            const currentTime = new Date().toLocaleTimeString();
 
-        // Update table every hour
-        setInterval(updateTemperatureTable, 3600000); // Every hour (3600000 ms)
+            // Add new data to the chart
+            labels.push(currentTime);
+            temperatureData.push(temperature);
+            humidityData.push(humidity);
+
+            // Update chart data
+            temperatureChart.update();
+        }
+
+        // Fetch sensor data every 5 minutes
+        setInterval(fetchSensorData, 300000); // 300000 ms = 5 minutes
+
+        // Initial fetch
+        fetchSensorData();
     </script>
 </body>
 </html>
