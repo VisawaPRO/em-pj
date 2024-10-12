@@ -267,7 +267,7 @@
             sensorDataDiv.innerHTML += status;
 
             // Update chart data
-            if (now - lastChartUpdate > 60000) { // Update chart every minute
+            if (now - lastChartUpdate > 3600000) { // Update chart every minute
                 temperatureChart.data.labels.push(timeString);
                 temperatureChart.data.datasets[0].data.push(temperature);
                 temperatureChart.data.datasets[1].data.push(humidity);
@@ -316,7 +316,7 @@
 
         // Initial fetch and set interval for data fetching
         fetchData();
-        setInterval(fetchData, 10000); // Fetch data every 10 seconds
+        setInterval(fetchData, 1000); // Fetch data every 10 seconds
     </script>
 </body>
 </html>
