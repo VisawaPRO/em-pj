@@ -6,57 +6,70 @@
     <title>ESP32 Sensor Data</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Courier New', Courier, monospace;
             margin: 0;
             padding: 20px;
-            background-color: #f4f4f4;
-            color: #333;
+            background: linear-gradient(135deg, #0e0f20, #1c1c2e);
+            color: #e3e3e3;
+            overflow: hidden;
+            animation: backgroundAnimation 10s infinite alternate;
         }
+
+        @keyframes backgroundAnimation {
+            0% { background: linear-gradient(135deg, #0e0f20, #1c1c2e); }
+            100% { background: linear-gradient(135deg, #1c1c2e, #0e0f20); }
+        }
+
         h1 {
             text-align: center;
-            color: #444;
-            font-size: 2em;
+            color: #00ffcc;
+            font-size: 2.5em;
             margin-bottom: 20px;
+            text-shadow: 0 0 20px #00ffcc;
         }
+
         .container {
             display: flex;
             justify-content: center;
             align-items: flex-start;
             gap: 20px;
             flex-wrap: wrap;
+            perspective: 1000px;
+            margin-bottom: 20px;
         }
-        #sensorData {
+
+        #sensorData, #temperatureChart {
             padding: 20px;
-            background-color: #fff;
-            border: 1px solid #ccc;
+            background-color: rgba(30, 30, 30, 0.8);
+            border: 2px solid #00ffcc;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            max-width: 300px;
-            flex: 0 0 auto;
-        }
-        #temperatureChart {
-            padding: 20px;
-            background-color: #fff;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 255, 204, 0.3);
             flex: 1;
-            height: 400px;
-            min-width: 400px;
+            transform: rotateY(0deg);
+            transition: transform 0.5s;
         }
+
+        #sensorData:hover, #temperatureChart:hover {
+            transform: rotateY(10deg);
+        }
+
         .section-header {
             text-align: center;
             font-size: 1.5em;
             margin: 20px 0;
             padding: 10px;
-            border: 2px solid #4caf50;
+            border: 2px solid #00ffcc;
             border-radius: 10px;
-            background-color: #e7f7e7;
+            background-color: rgba(0, 255, 204, 0.1);
+            color: #00ffcc;
+            text-shadow: 0 0 10px #00ffcc;
         }
+
         .sensor-value {
             font-size: 1.2em;
             margin-bottom: 10px;
         }
+
         .status {
             font-weight: bold;
             padding: 5px 10px;
@@ -64,18 +77,22 @@
             display: inline-block;
             margin-top: 10px;
         }
+
         .hot {
-            background-color: #ff4d4d;
+            background-color: rgba(255, 0, 0, 0.7);
             color: white;
         }
+
         .normal {
-            background-color: #4caf50;
+            background-color: rgba(0, 255, 0, 0.7);
             color: white;
         }
+
         .cold {
-            background-color: #4db8ff;
+            background-color: rgba(0, 0, 255, 0.7);
             color: white;
         }
+
         #temperatureTable {
             margin-top: 20px;
             width: 100%;
@@ -83,14 +100,21 @@
             margin-left: auto;
             margin-right: auto;
             border-collapse: collapse;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
         }
+
         #temperatureTable th, #temperatureTable td {
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid rgba(0, 255, 204, 0.5);
             text-align: center;
         }
+
         #temperatureTable th {
-            background-color: #f0f0f0;
+            background-color: rgba(0, 255, 204, 0.3);
+        }
+
+        .glow {
+            text-shadow: 0 0 20px rgba(255, 255, 255, 1);
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -113,17 +137,22 @@
             </tr>
         </thead>
         <tbody>
-            <!-- Average temperature data will be inserted here -->
+            <tr id="averageTemperatureRow">
+                <td id="currentDay"></td>
+                <td id="averageTemperature">N/A</td>
+            </tr>
         </tbody>
     </table>
 
     <script>
         const sensorDataDiv = document.getElementById('sensorData');
         const temperatureTableBody = document.querySelector('#temperatureTable tbody');
+        const currentDayCell = document.getElementById('currentDay');
+        const averageTemperatureCell = document.getElementById('averageTemperature');
         const ctx = document.getElementById('temperatureChartCanvas').getContext('2d');
 
-        let hourlyTemperatures = [];
-        let dailyAverages = [];
+        let hourlyTemperatures = {};
+        let dailyAverages = {};
         let temperatureData = [];
         let humidityData = [];
         let labels = [];
@@ -158,164 +187,136 @@
                     x: {
                         title: {
                             display: true,
-                            text: 'Time ⏰'
+                            text: 'Time ⏰',
+                            color: 'white',
+                            font: {
+                                size: 14,
+                                weight: 'bold',
+                                family: 'Courier New'
+                            }
+                        },
+                        ticks: {
+                            color: 'white'
                         }
                     },
                     y: {
                         title: {
                             display: true,
-                            text: 'Value'
+                            text: 'Value',
+                            color: 'white',
+                            font: {
+                                size: 14,
+                                weight: 'bold',
+                                family: 'Courier New'
+                            }
                         },
-                        min: 0
+                        min: 0,
+                        ticks: {
+                            color: 'white'
+                        }
                     }
                 }
             }
         });
 
+        const fetchUrl = 'http://192.168.1.119:3300/sensor-data'; // Change this to your actual API endpoint
+        const apiKey = 'Bearer z9LRcZFD09RzMdFJg0OwInK9iMhldA90Tz9h9XXc2rsTrPGmRhMRP06sq4JNXhiLUkrXyS63Nx';
+
         // Function to calculate heat index
         function calculateHeatIndex(temperature, humidity) {
-            const c1 = -8.78469475556;
-            const c2 = 1.61139411;
-            const c3 = 2.33854883889;
-            const c4 = -0.14611605;
-            const c5 = -0.012308094;
-            const c6 = -0.0164248277778;
-            const c7 = 0.002211732;
-            const c8 = 0.00072546;
-            const c9 = -0.000003582;
+            const c1 = -42.379;
+            const c2 = 2.04901523;
+            const c3 = 10.14333127;
+            const c4 = -0.22475541;
+            const c5 = -6.83783 * Math.pow(10, -3);
+            const c6 = -5.481717 * Math.pow(10, -2);
+            const c7 = 1.22874 * Math.pow(10, -3);
+            const c8 = 8.5282 * Math.pow(10, -4);
+            const c9 = -1.99 * Math.pow(10, -6);
 
-            const heatIndex = c1 + 
-                            (c2 * temperature) + 
-                            (c3 * humidity) + 
-                            (c4 * temperature * humidity) + 
-                            (c5 * temperature * temperature) + 
-                            (c6 * humidity * humidity) + 
-                            (c7 * temperature * temperature * humidity) + 
-                            (c8 * temperature * humidity * humidity) + 
-                            (c9 * temperature * temperature * humidity * humidity);
-            return heatIndex.toFixed(2);
+            return c1 + (c2 * temperature) + (c3 * humidity) + (c4 * temperature * humidity) +
+                (c5 * Math.pow(temperature, 2)) + (c6 * Math.pow(humidity, 2)) +
+                (c7 * Math.pow(temperature, 2) * humidity) + (c8 * temperature * Math.pow(humidity, 2)) +
+                (c9 * Math.pow(temperature, 2) * Math.pow(humidity, 2));
         }
 
-        // Function to fetch sensor data from the server
-        function fetchSensorData() {
-            fetch('http://192.168.1.119:3300/sensor-data', {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer z9LRcZFD09RzMdFJg0OwInK9iMhldA90Tz9h9XXc2rsTrPGmRhMRP06sq4JNXhiLUkrXyS63Nx'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok: ' + response.statusText);
-                }
-                return response.json();
-            })
-            .then(data => {
-                displaySensorData(data);
-                updateTemperatureAverages(data.temperature);
-
-                // Check if it's time to update the chart
-                const now = new Date();
-                if (now - lastChartUpdate >= 3600000) { // 1 hour
-                    updateChart(data.temperature, data.humidity);
-                    lastChartUpdate = now; // Update last chart update time
-                }
-                lastFetchTime = now; // Update last fetch time
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                sensorDataDiv.innerHTML = 'Error fetching sensor data';
-            });
-        }
-
-        // Function to reset daily averages
-        function resetDailyAverages() {
-            const currentDate = new Date().toLocaleDateString();
-            if (dailyAverages.length > 0 && dailyAverages[dailyAverages.length - 1].day !== currentDate) {
-                dailyAverages = []; // Reset if a new day
-                renderAverageTemperatures();
-            }
-        }
-
-        // Function to display sensor data
-        function displaySensorData(data) {
-            const heatIndex = calculateHeatIndex(data.temperature, data.humidity);
-
-            let statusClass = '';
-            let statusText = '';
-            if (heatIndex >= 30) {
-                statusClass = 'hot';
-                statusText = 'Hot 🔥';
-            } else if (heatIndex >= 20 && heatIndex < 30) {
-                statusClass = 'normal';
-                statusText = 'Normal 😊';
-            } else {
-                statusClass = 'cold';
-                statusText = 'Cold ❄️';
-            }
-
-            sensorDataDiv.innerHTML =  
-                `<h2>Current Sensor Data</h2>
-                <div class="sensor-value">Temperature: ${data.temperature} °C</div>
-                <div class="sensor-value">Humidity: ${data.humidity} %</div>
-                <div class="sensor-value">Heat Index: ${heatIndex} °C</div>
-                <div class="status ${statusClass}">${statusText}</div>`;
-
-            resetDailyAverages(); // Check if daily averages need resetting
-        }
-
-        // Function to update temperature averages
-        function updateTemperatureAverages(currentTemperature) {
+        // Function to update the sensor data display
+        function updateSensorData(temperature, humidity) {
             const now = new Date();
-            const hour = now.getHours();
-            const currentDay = now.toLocaleDateString();
-            let totalTemperature = 0;
+            const timeString = now.toLocaleTimeString();
 
-            // Check if the hour is already in the averages
-            const existingAverage = dailyAverages.find(avg => avg.day === currentDay);
-            if (existingAverage) {
-                existingAverage.temperatures.push(currentTemperature);
+            // Update sensor data display
+            sensorDataDiv.innerHTML = `
+                <div class="sensor-value">Temperature: <span class="temp">${temperature} °C</span></div>
+                <div class="sensor-value">Humidity: <span class="humidity">${humidity}%</span></div>
+                <div class="sensor-value">Time: ${timeString}</div>
+            `;
+
+            // Calculate heat index and update status
+            const heatIndex = calculateHeatIndex(temperature, humidity);
+            let status = '';
+
+            if (heatIndex > 30) {
+                status = `<span class="status hot">Status : Hot🔥</span>`;
+            } else if (heatIndex < 20) {
+                status = `<span class="status cold">Status : Cold❄️</span>`;
             } else {
-                dailyAverages.push({ day: currentDay, temperatures: [currentTemperature] });
+                status = `<span class="status normal">Status : Normal😊</span>`;
             }
 
-            // Calculate the average temperature for the day
-            dailyAverages.forEach(avg => {
-                totalTemperature = avg.temperatures.reduce((sum, temp) => sum + temp, 0);
-                const averageTemperature = (totalTemperature / avg.temperatures.length).toFixed(2);
-                avg.averageTemperature = averageTemperature;
-            });
-            renderAverageTemperatures();
+            sensorDataDiv.innerHTML += status;
+
+            // Update chart data
+            if (now - lastChartUpdate > 60000) { // Update chart every minute
+                temperatureChart.data.labels.push(timeString);
+                temperatureChart.data.datasets[0].data.push(temperature);
+                temperatureChart.data.datasets[1].data.push(humidity);
+                temperatureChart.update();
+                lastChartUpdate = now;
+            }
+
+            // Update hourly temperature tracking
+            const currentHour = now.getHours();
+            if (!hourlyTemperatures[currentHour]) {
+                hourlyTemperatures[currentHour] = [];
+            }
+            hourlyTemperatures[currentHour].push(temperature);
+
+            // Update daily averages
+            const today = now.toLocaleDateString();
+            if (!dailyAverages[today]) {
+                dailyAverages[today] = { total: 0, count: 0 };
+            }
+            dailyAverages[today].total += temperature;
+            dailyAverages[today].count += 1;
+
+            // Update the average temperature row
+            currentDayCell.innerText = today;
+            averageTemperatureCell.innerText = (dailyAverages[today].total / dailyAverages[today].count).toFixed(2);
         }
 
-        // Function to render average temperatures
-        function renderAverageTemperatures() {
-            temperatureTableBody.innerHTML = '';
-            dailyAverages.forEach(avg => {
-                const row = `<tr>
-                                <td>${avg.day}</td>
-                                <td>${avg.averageTemperature} °C</td>
-                             </tr>`;
-                temperatureTableBody.innerHTML += row;
-            });
+        // Fetch data from the API
+        async function fetchData() {
+            try {
+                const response = await fetch(fetchUrl, {
+                    method: 'GET',
+                    headers: { 'Authorization': apiKey }
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                const temperature = data.temperature;
+                const humidity = data.humidity;
+
+                updateSensorData(temperature, humidity);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
         }
 
-        // Function to update the chart
-        function updateChart(temperature, humidity) {
-            const now = new Date();
-            const timeLabel = now.toLocaleTimeString();
-
-            // Add new data to the chart
-            labels.push(timeLabel);
-            temperatureData.push(temperature);
-            humidityData.push(humidity);
-
-            // Update the chart
-            temperatureChart.update();
-        }
-
-        // Fetch data every second for the sensor data
-        setInterval(fetchSensorData, 1000);
+        // Initial fetch and set interval for data fetching
+        fetchData();
+        setInterval(fetchData, 10000); // Fetch data every 10 seconds
     </script>
 </body>
 </html>
